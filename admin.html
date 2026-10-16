@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rádio Web Pro - Estúdio do Radialista</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #080c14;
+      color: #f1f5f9;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      background: #1e293b;
+      height: 6px;
+      border-radius: 9999px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+  <!-- Top Navigation -->
+  <header class="w-full bg-slate-950/90 border-b border-slate-800 px-4 sm:px-8 py-3.5 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-rose-500 to-amber-500 flex items-center justify-center text-slate-950 font-black shadow-[0_0_15px_rgba(244,63,94,0.4)]">
+        🎙️
+      </div>
+      <div>
+        <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">RÁDIO WEB PRO · ESTÚDIO</h1>
+        <span class="text-[10px] font-mono text-slate-400">PAINEL DO RADIALISTA MASTER</span>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <div id="statusBadge" class="px-3 py-1 rounded-full bg-rose-500/20 border border-rose-500/50 text-rose-400 font-mono text-xs font-bold flex items-center gap-2 animate-pulse">
+        <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+        <span>ON AIR</span>
+      </div>
+
+      <a href="/" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors flex items-center gap-1.5">
+        🎧 Ouvir Rádio
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Console -->
+  <main class="max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6 flex-1">
+    
+    <!-- Top Telemetry Row -->
+    <div class="rounded-2xl bg-slate-900 border border-slate-800 p-5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-full bg-slate-950 border border-slate-800 flex items-center justify-center text-xl">
+          📡
+        </div>
+        <div>
+          <span class="text-[10px] font-mono text-sky-400 uppercase tracking-wider block">Servidor de Transmissão WebSocket</span>
+          <span id="connStatus" class="text-sm font-bold text-emerald-400">● Conectado (Baixa Latência)</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-6 text-xs font-mono">
+        <div>
+          <span class="text-slate-400 text-[10px] block">OUVINTES AO VIVO</span>
+          <span id="listenersCount" class="text-lg font-bold text-white tabular-nums">1</span>
+        </div>
+        <div class="h-8 w-[1px] bg-slate-800"></div>
+        <div>
+          <span class="text-slate-400 text-[10px] block">ÁUDIO PCM</span>
+          <span class="text-xs font-bold text-sky-400">16-bit 44.1kHz</span>
+        </div>
+        <div class="h-8 w-[1px] bg-slate-800"></div>
+        <div>
+          <span class="text-slate-400 text-[10px] block">SUPABASE CLOUD</span>
+          <span id="supabaseStatus" class="text-xs font-bold text-emerald-400">● Conectado</span>
+        </div>
+        <div class="h-8 w-[1px] bg-slate-800"></div>
+        <div>
+          <span class="text-slate-400 text-[10px] block">LATÊNCIA ESTIMADA</span>
+          <span class="text-xs font-bold text-emerald-400">&lt; 150 ms</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 Main Columns: Virtual Mixer Strips & Soundboard/Music -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Left Column: Master Mic & Console Controls -->
+      <div class="lg:col-span-5 rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-6 flex flex-col justify-between">
+        <div>
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-6">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span>🎤</span>
+              <span>Microfone do Radialista</span>
+            </h2>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-500/20 text-sky-300">
+              CH 1 · AO VIVO
+            </span>
+          </div>
+
+          <!-- Giant Mic Button -->
+          <div class="flex flex-col items-center justify-center gap-4 py-4">
+            <button
+              id="micToggleBtn"
+              class="w-28 h-28 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 border-4 border-slate-700 flex flex-col items-center justify-center transition-all shadow-2xl active:scale-95"
+            >
+              <span class="text-3xl" id="micIcon">🎙️</span>
+              <span id="micLabel" class="text-[11px] font-mono font-bold mt-1">MIC MUDO</span>
+            </button>
+
+            <span id="micSubtext" class="text-xs text-slate-400 text-center max-w-xs">
+              Clique para ligar o microfone e falar em tempo real para todos os ouvintes conectados.
+            </span>
+          </div>
+
+          <!-- VU Meter Display -->
+          <div class="space-y-1.5 mt-2">
+            <div class="flex justify-between text-[11px] font-mono text-slate-400">
+              <span>VU METER (NÍVEL DE VOZ)</span>
+              <span id="vuDbReadout" class="text-sky-400 tabular-nums">-∞ dB</span>
+            </div>
+            <div class="h-4 bg-slate-950 rounded-lg p-0.5 border border-slate-800 flex gap-0.5 overflow-hidden" id="vuMeterContainer">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Gain Slider & Auto Ducking -->
+        <div class="pt-4 border-t border-slate-800 space-y-4">
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs font-mono text-slate-400">
+              <span>GANHO DO MICROFONE</span>
+              <span id="micGainVal" class="text-sky-400 font-bold">100%</span>
+            </div>
+            <input type="range" id="micGainSlider" min="0" max="2.5" step="0.05" value="1.0" class="w-full">
+          </div>
+
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs">
+            <div>
+              <span class="font-bold text-slate-200 block">Auto-Ducking Inteligente</span>
+              <span class="text-[11px] text-slate-400">Abaixa a música automaticamente ao falar</span>
+            </div>
+            <input type="checkbox" id="autoDuckingCheck" checked class="w-4 h-4 accent-sky-500 cursor-pointer">
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Soundboard & Music File Deck -->
+      <div class="lg:col-span-7 rounded-2xl bg-slate-900 border border-slate-800 p-6 space-y-6 flex flex-col justify-between">
+        
+        <!-- Music File Upload and Player -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span>🎵</span>
+              <span>Mesa de Som (Músicas do Computador)</span>
+            </h2>
+            <span class="text-[10px] font-mono text-slate-400">MP3 / WAV / AAC</span>
+          </div>
+
+          <!-- File Input -->
+          <div class="p-4 rounded-xl bg-slate-950 border-2 border-dashed border-slate-800 hover:border-sky-500/50 transition-colors text-center">
+            <label class="cursor-pointer block space-y-2">
+              <span class="text-2xl block">📂</span>
+              <span class="text-xs font-bold text-sky-400 hover:text-sky-300">
+                Selecione uma música do seu computador para transmitir
+              </span>
+              <span class="text-[11px] text-slate-500 block">
+                O arquivo será transmitido no ar junto com a sua voz
+              </span>
+              <input type="file" id="audioFileInput" accept="audio/*" class="hidden">
+            </label>
+          </div>
+
+          <!-- Music Player Controls -->
+          <div id="musicPlayerBox" class="p-4 rounded-xl bg-slate-950 border border-slate-800 hidden space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-[10px] font-mono text-sky-400 block uppercase">Tocando no Ar</span>
+                <span id="nowPlayingTitle" class="text-xs sm:text-sm font-bold text-white truncate max-w-xs block">Nenhum arquivo</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="playMusicBtn" class="px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs">
+                  Tocar
+                </button>
+                <button id="stopMusicBtn" class="px-3.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs">
+                  Parar
+                </button>
+              </div>
+            </div>
+
+            <audio id="audioEl" class="hidden"></audio>
+
+            <div class="space-y-1">
+              <div class="flex justify-between text-[11px] font-mono text-slate-400">
+                <span>VOLUME DA MÚSICA</span>
+                <span id="musicGainVal" class="text-sky-400">80%</span>
+              </div>
+              <input type="range" id="musicGainSlider" min="0" max="1.5" step="0.05" value="0.8" class="w-full">
+            </div>
+          </div>
+        </div>
+
+        <!-- Vinhetas Rápidas (Soundboard) -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+            <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
+              <span>⚡</span>
+              <span>Disparo de Vinhetas & Efeitos</span>
+            </h3>
+            <span class="text-[10px] font-mono text-slate-400">Instantâneo</span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <button onclick="playSfx('vinheta')" class="p-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-sky-500 hover:bg-slate-800/80 text-left transition-all active:scale-95">
+              <span class="text-[10px] font-mono text-slate-500 block">01</span>
+              <span class="text-xs font-bold text-slate-200 block">Vinheta Pro</span>
+            </button>
+            <button onclick="playSfx('airhorn')" class="p-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-amber-500 hover:bg-slate-800/80 text-left transition-all active:scale-95">
+              <span class="text-[10px] font-mono text-slate-500 block">02</span>
+              <span class="text-xs font-bold text-slate-200 block">Air Horn 📢</span>
+            </button>
+            <button onclick="playSfx('applause')" class="p-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500 hover:bg-slate-800/80 text-left transition-all active:scale-95">
+              <span class="text-[10px] font-mono text-slate-500 block">03</span>
+              <span class="text-xs font-bold text-slate-200 block">Aplausos 👏</span>
+            </button>
+            <button onclick="playSfx('laser')" class="p-3 rounded-xl bg-slate-950 border border-slate-800 hover:border-purple-500 hover:bg-slate-800/80 text-left transition-all active:scale-95">
+              <span class="text-[10px] font-mono text-slate-500 block">04</span>
+              <span class="text-xs font-bold text-slate-200 block">Laser Sweep</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full border-t border-slate-900 bg-slate-950/60 py-4 px-4 text-center text-xs text-slate-500">
+    Rádio Web Pro · Sistema Profissional de Transmissão de Baixa Latência
+  </footer>
+
+  <script>
+    // --- ESTÚDIO WEB AUDIO API + WEBSOCKET ENGINE ---
+    let audioCtx = null;
+    let micStream = null;
+    let micSource = null;
+    let micGainNode = null;
+    let musicSource = null;
+    let musicGainNode = null;
+    let mixerGain = null;
+    let processorNode = null;
+    let analyserNode = null;
+
+    let isMicActive = false;
+    let isBroadcasting = false;
+    let autoDucking = true;
+
+    // WebSocket connection
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(protocol + '//' + window.location.host + '/ws');
+    ws.binaryType = 'arraybuffer';
+
+    ws.onopen = () => {
+      document.getElementById('connStatus').innerText = '● Conectado (Pronto para Transmitir)';
+    };
+
+    ws.onerror = () => {
+      if (window.location.hostname.includes('netlify.app')) {
+        document.getElementById('connStatus').innerHTML = '<span class="text-amber-400">⚠️ Netlify é estático (sem Node.js/WS). Para transmitir ao vivo, faça deploy no Render.com ou Railway!</span>';
+      } else {
+        document.getElementById('connStatus').innerText = '● Servidor local / aguardando backend';
+      }
+    };
+
+    // Check Supabase Cloud Database status
+    fetch('/api/supabase/status')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.connected) {
+          document.getElementById('supabaseStatus').innerText = '● Conectado (' + data.projectRef + ')';
+        }
+      })
+      .catch(() => {});
+
+    ws.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'listeners_count') {
+          document.getElementById('listenersCount').innerText = msg.count;
+        } else if (msg.type === 'init' && msg.data?.station?.listenersCount) {
+          document.getElementById('listenersCount').innerText = msg.data.station.listenersCount;
+        }
+      } catch (e) {}
+    };
+
+    function initAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Mixer Node
+        mixerGain = audioCtx.createGain();
+        mixerGain.gain.setValueAtTime(0.9, audioCtx.currentTime);
+
+        // Analyser for VU Meter
+        analyserNode = audioCtx.createAnalyser();
+        analyserNode.fftSize = 256;
+        mixerGain.connect(analyserNode);
+
+        // ScriptProcessorNode to capture raw PCM 16-bit audio chunks and send over WebSocket!
+        const bufferSize = 2048;
+        processorNode = audioCtx.createScriptProcessor(bufferSize, 1, 1);
+        processorNode.onaudioprocess = (e) => {
+          if (!isBroadcasting) return;
+          const input = e.inputBuffer.getChannelData(0);
+          
+          // Convert Float32 [-1, 1] to Int16 PCM
+          const pcm16 = new Int16Array(input.length);
+          for (let i = 0; i < input.length; i++) {
+            let s = Math.max(-1, Math.min(1, input[i]));
+            pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+          }
+
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(pcm16.buffer);
+          }
+        };
+
+        mixerGain.connect(processorNode);
+        processorNode.connect(audioCtx.destination);
+
+        startVuLoop();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    // Toggle Microphone
+    const micToggleBtn = document.getElementById('micToggleBtn');
+    micToggleBtn.addEventListener('click', async () => {
+      initAudioContext();
+
+      if (!isMicActive) {
+        try {
+          micStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+          });
+          micSource = audioCtx.createMediaStreamSource(micStream);
+          micGainNode = audioCtx.createGain();
+          micGainNode.gain.setValueAtTime(parseFloat(document.getElementById('micGainSlider').value), audioCtx.currentTime);
+
+          micSource.connect(micGainNode);
+          micGainNode.connect(mixerGain);
+
+          isMicActive = true;
+          isBroadcasting = true;
+
+          // UI update
+          micToggleBtn.className = "w-28 h-28 rounded-full bg-rose-600 text-white border-4 border-rose-300 shadow-[0_0_30px_rgba(225,29,72,0.8)] flex flex-col items-center justify-center transition-all animate-pulse active:scale-95";
+          document.getElementById('micLabel').innerText = "MIC NO AR";
+          document.getElementById('micSubtext').innerText = "🔴 VOCÊ ESTÁ FALANDO AO VIVO! Os ouvintes estão te ouvindo em tempo real.";
+
+          // Auto-ducking
+          if (autoDucking && musicGainNode) {
+            musicGainNode.gain.setTargetAtTime(0.15, audioCtx.currentTime, 0.1);
+          }
+        } catch (err) {
+          alert('Erro ao acessar o microfone. Verifique as permissões de áudio do seu navegador.');
+        }
+      } else {
+        // Mute mic
+        if (micStream) {
+          micStream.getTracks().forEach(t => t.stop());
+        }
+        isMicActive = false;
+        micToggleBtn.className = "w-28 h-28 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 border-4 border-slate-700 flex flex-col items-center justify-center transition-all shadow-2xl active:scale-95";
+        document.getElementById('micLabel').innerText = "MIC MUDO";
+        document.getElementById('micSubtext').innerText = "Clique para ligar o microfone e falar em tempo real.";
+
+        // Restore music volume smoothly
+        if (musicGainNode) {
+          musicGainNode.gain.setTargetAtTime(parseFloat(document.getElementById('musicGainSlider').value), audioCtx.currentTime, 0.4);
+        }
+      }
+    });
+
+    // Mic Gain Slider
+    document.getElementById('micGainSlider').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      document.getElementById('micGainVal').innerText = Math.round((val / 2.5) * 100) + '%';
+      if (micGainNode && audioCtx) {
+        micGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
+      }
+    });
+
+    // Auto-ducking checkbox
+    document.getElementById('autoDuckingCheck').addEventListener('change', (e) => {
+      autoDucking = e.target.checked;
+    });
+
+    // Music File Upload
+    const audioFileInput = document.getElementById('audioFileInput');
+    const audioEl = document.getElementById('audioEl');
+    audioFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      initAudioContext();
+      audioEl.src = URL.createObjectURL(file);
+      document.getElementById('nowPlayingTitle').innerText = file.name;
+      document.getElementById('musicPlayerBox').classList.remove('hidden');
+
+      if (!musicSource) {
+        musicSource = audioCtx.createMediaElementSource(audioEl);
+        musicGainNode = audioCtx.createGain();
+        musicGainNode.gain.setValueAtTime(parseFloat(document.getElementById('musicGainSlider').value), audioCtx.currentTime);
+        musicSource.connect(musicGainNode);
+        musicGainNode.connect(mixerGain);
+      }
+
+      audioEl.play();
+      isBroadcasting = true;
+      document.getElementById('playMusicBtn').innerText = 'Pausar';
+    });
+
+    document.getElementById('playMusicBtn').addEventListener('click', () => {
+      initAudioContext();
+      if (audioEl.paused) {
+        audioEl.play();
+        isBroadcasting = true;
+        document.getElementById('playMusicBtn').innerText = 'Pausar';
+      } else {
+        audioEl.pause();
+        document.getElementById('playMusicBtn').innerText = 'Tocar';
+      }
+    });
+
+    document.getElementById('stopMusicBtn').addEventListener('click', () => {
+      audioEl.pause();
+      audioEl.currentTime = 0;
+      document.getElementById('playMusicBtn').innerText = 'Tocar';
+    });
+
+    document.getElementById('musicGainSlider').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value);
+      document.getElementById('musicGainVal').innerText = Math.round((val / 1.5) * 100) + '%';
+      if (musicGainNode && audioCtx) {
+        musicGainNode.gain.setValueAtTime(val, audioCtx.currentTime);
+      }
+    });
+
+    // Soundboard Synthesizers
+    window.playSfx = (type) => {
+      initAudioContext();
+      const t = audioCtx.currentTime;
+      isBroadcasting = true;
+
+      if (type === 'vinheta') {
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+          const osc = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, t + i * 0.12);
+          g.gain.setValueAtTime(0.3, t + i * 0.12);
+          g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.12 + 0.8);
+          osc.connect(g);
+          g.connect(mixerGain);
+          osc.start(t + i * 0.12);
+          osc.stop(t + i * 0.12 + 0.9);
+        });
+      } else if (type === 'airhorn') {
+        [0, 0.16, 0.32].forEach((offset) => {
+          const osc = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(466.16, t + offset);
+          g.gain.setValueAtTime(0.25, t + offset);
+          g.gain.exponentialRampToValueAtTime(0.001, t + offset + 0.15);
+          osc.connect(g);
+          g.connect(mixerGain);
+          osc.start(t + offset);
+          osc.stop(t + offset + 0.16);
+        });
+      } else if (type === 'applause') {
+        const bufferSize = audioCtx.sampleRate * 2.0;
+        const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+        const noise = audioCtx.createBufferSource();
+        noise.buffer = buffer;
+        const g = audioCtx.createGain();
+        g.gain.setValueAtTime(0.3, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 1.9);
+        noise.connect(g);
+        g.connect(mixerGain);
+        noise.start(t);
+        noise.stop(t + 2.0);
+      } else if (type === 'laser') {
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(2400, t);
+        osc.frequency.exponentialRampToValueAtTime(80, t + 0.4);
+        g.gain.setValueAtTime(0.3, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+        osc.connect(g);
+        g.connect(mixerGain);
+        osc.start(t);
+        osc.stop(t + 0.42);
+      }
+    };
+
+    // VU Meter Loop
+    const vuContainer = document.getElementById('vuMeterContainer');
+    const segments = 24;
+    for (let i = 0; i < segments; i++) {
+      const seg = document.createElement('div');
+      seg.className = "flex-1 rounded-[1px] bg-slate-800 transition-all duration-75";
+      vuContainer.appendChild(seg);
+    }
+
+    function startVuLoop() {
+      const data = new Float32Array(128);
+      const segElements = vuContainer.children;
+
+      const update = () => {
+        if (analyserNode) {
+          analyserNode.getFloatTimeDomainData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+          const rms = Math.sqrt(sum / data.length);
+          const activeCount = Math.round(Math.min(1, rms * 3.5) * segments);
+
+          const db = rms > 0.001 ? (20 * Math.log10(rms)).toFixed(1) : '-∞';
+          document.getElementById('vuDbReadout').innerText = db + ' dB';
+
+          for (let i = 0; i < segments; i++) {
+            if (i < activeCount) {
+              if (i >= 20) {
+                segElements[i].className = "flex-1 rounded-[1px] bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]";
+              } else if (i >= 15) {
+                segElements[i].className = "flex-1 rounded-[1px] bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]";
+              } else {
+                segElements[i].className = "flex-1 rounded-[1px] bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]";
+              }
+            } else {
+              segElements[i].className = "flex-1 rounded-[1px] bg-slate-800";
+            }
+          }
+        }
+        requestAnimationFrame(update);
+      };
+      update();
+    }
+  </script>
+</body>
+</html>
