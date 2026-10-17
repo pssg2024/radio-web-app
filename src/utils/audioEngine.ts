@@ -64,15 +64,23 @@ export class RadioAudioEngine {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     this.ctx = new AudioContextClass();
 
-    // Master bus
+    // Master bus & Professional Brickwall Limiter (prevents clipping/distortion)
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.setValueAtTime(0.9, this.ctx.currentTime);
+    this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
+
+    const masterLimiter = this.ctx.createDynamicsCompressor();
+    masterLimiter.threshold.setValueAtTime(-1.0, this.ctx.currentTime);
+    masterLimiter.knee.setValueAtTime(0.0, this.ctx.currentTime);
+    masterLimiter.ratio.setValueAtTime(20.0, this.ctx.currentTime);
+    masterLimiter.attack.setValueAtTime(0.001, this.ctx.currentTime);
+    masterLimiter.release.setValueAtTime(0.1, this.ctx.currentTime);
 
     this.masterAnalyser = this.ctx.createAnalyser();
     this.masterAnalyser.fftSize = 512;
     this.masterAnalyser.smoothingTimeConstant = 0.8;
 
-    this.masterGain.connect(this.masterAnalyser);
+    this.masterGain.connect(masterLimiter);
+    masterLimiter.connect(this.masterAnalyser);
     this.masterAnalyser.connect(this.ctx.destination);
 
     // Music Channel
