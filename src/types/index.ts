@@ -49,6 +49,9 @@ export interface RadioTrack {
   genre: string;
   bpm: number;
   audioUrl?: string;
+  coverUrl?: string;
+  type?: 'audio' | 'video' | 'youtube';
+  youtubeId?: string;
   customFile?: boolean;
 }
 

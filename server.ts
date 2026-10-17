@@ -334,6 +334,21 @@ wss.on('connection', (ws: WebSocket) => {
           });
         }
       }
+
+      if (parsed.type === 'station_media_play') {
+        // Broadcaster playing an online track or video
+        broadcast({
+          type: 'station_media_play',
+          track: parsed.track,
+        });
+      }
+
+      if (parsed.type === 'station_media_stop') {
+        // Broadcaster stopped playback
+        broadcast({
+          type: 'station_media_stop',
+        });
+      }
     } catch (e) {
       console.error('Error handling WS message:', e);
     }
@@ -513,6 +528,76 @@ app.get('/api/schedule', (_req, res) => {
 // 7. Chat messages
 app.get('/api/chat/messages', (_req, res) => {
   res.json(db.chatMessages.slice(-50));
+});
+
+// 8. Online Music & Video Search API
+app.get('/api/music/search', async (req, res) => {
+  const query = ((req.query.q as string) || '').trim();
+  if (!query) {
+    return res.json([]);
+  }
+
+  // 1. Check for YouTube link
+  const ytMatch = query.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+  if (ytMatch && ytMatch[1]) {
+    const ytId = ytMatch[1];
+    return res.json([
+      {
+        id: 'yt_' + ytId,
+        title: 'Vídeo do YouTube (' + ytId + ')',
+        artist: 'Canal do YouTube',
+        album: 'YouTube Stream',
+        duration: 240,
+        coverUrl: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
+        audioUrl: `https://www.youtube.com/embed/${ytId}?autoplay=1&enablejsapi=1`,
+        type: 'youtube',
+        youtubeId: ytId,
+      },
+    ]);
+  }
+
+  // 2. Check for direct Video / Audio URL
+  if (query.startsWith('http://') || query.startsWith('https://')) {
+    const isVideo = query.includes('.mp4') || query.includes('.webm') || query.includes('video');
+    const filename = query.split('/').pop()?.split('?')[0] || (isVideo ? 'Vídeo da Web' : 'Áudio da Web');
+    return res.json([
+      {
+        id: 'direct_' + Date.now(),
+        title: decodeURIComponent(filename).replace(/\.[^/.]+$/, ''),
+        artist: 'Transmissão Online',
+        album: 'Link Direto',
+        duration: 210,
+        coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=120&q=80',
+        audioUrl: query,
+        type: isVideo ? 'video' : 'audio',
+      },
+    ]);
+  }
+
+  // 3. Search online music database via iTunes Search API (free, reliable, high quality audio & album artwork)
+  try {
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=25`;
+    const response = await fetch(itunesUrl);
+    if (response.ok) {
+      const data: any = await response.json();
+      const results = (data.results || []).map((item: any) => ({
+        id: 'itunes_' + item.trackId,
+        title: item.trackName,
+        artist: item.artistName,
+        album: item.collectionName || 'Single',
+        duration: Math.round((item.trackTimeMillis || 180000) / 1000),
+        coverUrl: (item.artworkUrl100 || '').replace('100x100bb', '300x300bb'),
+        audioUrl: item.previewUrl,
+        type: 'audio',
+      }));
+
+      return res.json(results);
+    }
+  } catch (err) {
+    console.warn('Error fetching from iTunes API, returning empty array:', err);
+  }
+
+  return res.json([]);
 });
 
 // Serve Broadcaster Studio HTML directly

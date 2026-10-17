@@ -425,183 +425,73 @@ export class RadioAudioEngine {
     osc.stop(t + 1.2);
   }
 
-  // --- AUTOMATION MUSIC SYNTHESIS & PLAYBACK ---
+  // --- REAL AUDIO PLAYBACK & STREAM ROUTING ---
 
-  public playRadioAutomation(trackTitle: string, genre: string = 'Synthwave') {
+  private currentAudioElement: HTMLAudioElement | null = null;
+  private currentMediaSource: MediaElementAudioSourceNode | null = null;
+
+  public playAudioUrl(url: string, title?: string): HTMLAudioElement | null {
+    this.init();
+    if (!this.ctx || !this.musicGain) return null;
+
+    this.stopRadioAutomation();
+
+    try {
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      audio.src = url;
+
+      const source = this.ctx.createMediaElementSource(audio);
+      source.connect(this.musicGain);
+
+      audio.play().catch((err) => console.warn('Audio playback error:', err));
+
+      this.currentAudioElement = audio;
+      this.currentMediaSource = source;
+      this.isMusicPlaying = true;
+      this.currentTrackId = title || 'Música da Internet';
+
+      return audio;
+    } catch (e) {
+      console.warn('Could not route audio element through Web Audio:', e);
+      return null;
+    }
+  }
+
+  public connectMediaElement(element: HTMLMediaElement): MediaElementAudioSourceNode | null {
+    this.init();
+    if (!this.ctx || !this.musicGain) return null;
+    try {
+      const source = this.ctx.createMediaElementSource(element);
+      source.connect(this.musicGain);
+      return source;
+    } catch (e) {
+      console.warn('Media element already connected or blocked:', e);
+      return null;
+    }
+  }
+
+  public playRadioAutomation(trackTitle: string, audioUrl?: string) {
     this.init();
     if (!this.ctx || !this.musicGain) return;
 
     this.stopRadioAutomation();
-    this.isMusicPlaying = true;
     this.currentTrackId = trackTitle;
 
-    // Rich procedural procedural radio background music
-    // Produces a groovy, radio-ready rhythmic track with kick, snare, bassline, and warm chords!
-    const tempo = genre.includes('Rock') ? 128 : genre.includes('Lo-Fi') ? 85 : 118;
-    const stepDuration = 60 / tempo / 4; // 16th note in seconds
-    let step = 0;
-
-    const chords = [
-      [261.63, 329.63, 392.0, 493.88], // Cmaj7
-      [220.0, 261.63, 329.63, 392.0],  // Am7
-      [174.61, 220.0, 261.63, 329.63], // Fmaj7
-      [196.0, 246.94, 293.66, 349.23], // G7
-    ];
-
-    const bassNotes = [130.81, 110.0, 87.31, 98.0];
-
-    this.synthInterval = setInterval(() => {
-      if (!this.isMusicPlaying || !this.ctx || !this.musicGain) return;
-      const t = this.ctx.currentTime;
-      const currentBar = Math.floor((step % 64) / 16);
-      const stepInBar = step % 16;
-
-      // Kick drum on 0, 4, 8, 12 (four on the floor)
-      if (stepInBar === 0 || stepInBar === 4 || stepInBar === 8 || stepInBar === 12) {
-        this.playKick(t);
-      }
-
-      // Snare on 4 and 12
-      if (stepInBar === 4 || stepInBar === 12) {
-        this.playSnare(t);
-      }
-
-      // Hi-hat on every off-beat
-      if (stepInBar % 2 === 1) {
-        this.playHiHat(t);
-      }
-
-      // Bassline on steps 0, 3, 6, 10
-      if ([0, 3, 6, 10].includes(stepInBar)) {
-        this.playBass(t, bassNotes[currentBar]);
-      }
-
-      // Warm synth chord pad every bar
-      if (stepInBar === 0) {
-        this.playPadChord(t, chords[currentBar], stepDuration * 16);
-      }
-
-      step++;
-    }, stepDuration * 1000);
-  }
-
-  private playKick(t: number) {
-    if (!this.ctx || !this.musicGain) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.frequency.setValueAtTime(130, t);
-    osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
-
-    gain.gain.setValueAtTime(0.5, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-
-    osc.connect(gain);
-    gain.connect(this.musicGain);
-
-    osc.start(t);
-    osc.stop(t + 0.17);
-  }
-
-  private playSnare(t: number) {
-    if (!this.ctx || !this.musicGain) return;
-    // Tone
-    const osc = this.ctx.createOscillator();
-    const oscGain = this.ctx.createGain();
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(180, t);
-    oscGain.gain.setValueAtTime(0.2, t);
-    oscGain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
-    osc.connect(oscGain);
-    oscGain.connect(this.musicGain);
-    osc.start(t);
-    osc.stop(t + 0.11);
-
-    // Noise snap
-    const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.15, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.setValueAtTime(1000, t);
-    const noiseGain = this.ctx.createGain();
-    noiseGain.gain.setValueAtTime(0.2, t);
-    noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-
-    noise.connect(filter);
-    filter.connect(noiseGain);
-    noiseGain.connect(this.musicGain);
-    noise.start(t);
-    noise.stop(t + 0.15);
-  }
-
-  private playHiHat(t: number) {
-    if (!this.ctx || !this.musicGain) return;
-    const buffer = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.04, this.ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
-    const noise = this.ctx.createBufferSource();
-    noise.buffer = buffer;
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'highpass';
-    filter.frequency.setValueAtTime(7000, t);
-    const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.1, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.035);
-
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.musicGain);
-    noise.start(t);
-    noise.stop(t + 0.04);
-  }
-
-  private playBass(t: number, freq: number) {
-    if (!this.ctx || !this.musicGain) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(freq / 2, t);
-
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(380, t);
-
-    gain.gain.setValueAtTime(0.3, t);
-    gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
-
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.musicGain);
-
-    osc.start(t);
-    osc.stop(t + 0.28);
-  }
-
-  private playPadChord(t: number, chordFreqs: number[], duration: number) {
-    if (!this.ctx || !this.musicGain) return;
-    chordFreqs.forEach((freq) => {
-      const osc = this.ctx!.createOscillator();
-      const gain = this.ctx!.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, t);
-
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.06, t + 0.2);
-      gain.gain.setValueAtTime(0.06, t + duration - 0.4);
-      gain.gain.linearRampToValueAtTime(0.001, t + duration);
-
-      osc.connect(gain);
-      gain.connect(this.musicGain!);
-
-      osc.start(t);
-      osc.stop(t + duration);
-    });
+    if (audioUrl) {
+      this.playAudioUrl(audioUrl, trackTitle);
+    } else {
+      this.isMusicPlaying = true;
+    }
   }
 
   public stopRadioAutomation() {
     this.isMusicPlaying = false;
+    if (this.currentAudioElement) {
+      this.currentAudioElement.pause();
+      this.currentAudioElement.currentTime = 0;
+      this.currentAudioElement = null;
+    }
     if (this.synthInterval) {
       clearInterval(this.synthInterval);
       this.synthInterval = null;
@@ -609,16 +499,16 @@ export class RadioAudioEngine {
   }
 
   // --- CROSSFADE SUPPORT ---
-  public crossfadeTo(nextTrackTitle: string, durationSec: number = 4) {
+  public crossfadeTo(nextTrackTitle: string, nextAudioUrl?: string, durationSec: number = 4) {
     if (!this.ctx || !this.musicGain) return;
     const t = this.ctx.currentTime;
-    // Dip current and transition
+    // Dip current and transition smoothly
     this.musicGain.gain.setValueAtTime(this.normalMusicGain, t);
     this.musicGain.gain.linearRampToValueAtTime(0.2, t + durationSec / 2);
     this.musicGain.gain.linearRampToValueAtTime(this.normalMusicGain, t + durationSec);
 
     setTimeout(() => {
-      this.playRadioAutomation(nextTrackTitle);
+      this.playRadioAutomation(nextTrackTitle, nextAudioUrl);
     }, (durationSec / 2) * 1000);
   }
 

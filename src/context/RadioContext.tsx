@@ -184,6 +184,32 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setChatMessages((prev) =>
               prev.map((m) => (m.id === msg.messageId ? { ...m, status: msg.status } : m))
             );
+          } else if (msg.type === 'station_media_play') {
+            if (msg.track) {
+              setStation((prev) => ({
+                ...prev,
+                currentTrack: {
+                  title: msg.track.title || 'Música Online',
+                  artist: msg.track.artist || 'Web Stream',
+                  album: msg.track.album || 'Rádio Web Pro',
+                  duration: msg.track.duration || 210,
+                  elapsed: 0,
+                  genre: msg.track.genre || 'Hit',
+                },
+              }));
+            }
+          } else if (msg.type === 'station_media_stop') {
+            setStation((prev) => ({
+              ...prev,
+              currentTrack: {
+                title: 'Estúdio em Pausa',
+                artist: prev.broadcaster,
+                album: 'Ao Vivo',
+                duration: 0,
+                elapsed: 0,
+                genre: 'Voz / Locução',
+              },
+            }));
           } else if (msg.type === 'podcast_added') {
             setPodcasts((prev) => [msg.podcast, ...prev]);
           } else if (msg.type === 'podcast_deleted') {
@@ -350,7 +376,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Live Radio Playback
+  // Live Radio Playback (Apenas recebe o áudio transmitido do estúdio)
   const togglePlayLive = () => {
     if (isPlayingLive) {
       setIsPlayingLive(false);
@@ -362,7 +388,8 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       globalAudioEngine.init();
       globalAudioEngine.setMasterGain(liveVolume);
-      globalAudioEngine.playRadioAutomation(station.currentTrack.title, station.currentTrack.genre);
+      // Nenhum som sintético de fundo automático no ouvinte;
+      // o ouvinte escuta estritamente o áudio transmitido pelo estúdio em tempo real!
       setIsPlayingLive(true);
     }
   };
@@ -443,7 +470,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const playTrackAutomation = (track: RadioTrack) => {
     setCurrentAutomationTrack(track);
     setIsAutomationPlaying(true);
-    globalAudioEngine.playRadioAutomation(track.title, track.genre);
+    globalAudioEngine.playRadioAutomation(track.title, track.audioUrl);
     updateStationStatus({
       currentTrack: {
         title: track.title,
@@ -454,6 +481,24 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         genre: track.genre,
       },
     });
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'station_media_play',
+          track: {
+            title: track.title,
+            artist: track.artist,
+            album: track.album,
+            duration: track.duration,
+            genre: track.genre,
+            audioUrl: track.audioUrl,
+            coverUrl: track.coverUrl,
+            type: track.type || 'audio',
+            youtubeId: track.youtubeId,
+          },
+        })
+      );
+    }
   };
 
   const crossfadeToNextTrack = () => {
@@ -462,7 +507,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const nextIndex = (currentIndex + 1) % tracks.length;
     const nextTrack = tracks[nextIndex];
     setCurrentAutomationTrack(nextTrack);
-    globalAudioEngine.crossfadeTo(nextTrack.title, 4);
+    globalAudioEngine.crossfadeTo(nextTrack.title, nextTrack.audioUrl, 4);
     updateStationStatus({
       currentTrack: {
         title: nextTrack.title,
@@ -473,11 +518,36 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         genre: nextTrack.genre,
       },
     });
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'station_media_play',
+          track: {
+            title: nextTrack.title,
+            artist: nextTrack.artist,
+            album: nextTrack.album,
+            duration: nextTrack.duration,
+            genre: nextTrack.genre,
+            audioUrl: nextTrack.audioUrl,
+            coverUrl: nextTrack.coverUrl,
+            type: nextTrack.type || 'audio',
+            youtubeId: nextTrack.youtubeId,
+          },
+        })
+      );
+    }
   };
 
   const stopTrackAutomation = () => {
     setIsAutomationPlaying(false);
     globalAudioEngine.stopRadioAutomation();
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(
+        JSON.stringify({
+          type: 'station_media_stop',
+        })
+      );
+    }
   };
 
   const addCustomTrack = (track: RadioTrack) => {
