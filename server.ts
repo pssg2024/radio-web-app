@@ -50,6 +50,7 @@ interface RadioDatabase {
       duration: number;
       elapsed: number;
       genre: string;
+      audioUrl?: string;
     };
     bitrate: string;
     audioQuality: string;
@@ -94,6 +95,7 @@ const initialData: RadioDatabase = {
       duration: 215,
       elapsed: 64,
       genre: 'Synthwave / Retro',
+      audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/c4/52/c6/c452c6de-47ba-afa5-0cc7-2bf47b3896fd/mzaf_2907503907252752691.plus.aac.p.m4a',
     },
     bitrate: '320 kbps (HD)',
     audioQuality: 'Stereo 48kHz Digital',
@@ -587,30 +589,27 @@ app.get('/api/music/search', async (req, res) => {
     ]);
   }
 
-  // 3. Search online music database via iTunes Search API (mapped to full-length high quality tracks)
+  // 3. Search online music database via iTunes Search API with real audio preview stream
   try {
-    const fullAudioTracks = [
-      'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=synthwave-80s-110045.mp3',
-      'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=acoustic-guitar-chill-10857.mp3',
-      'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=electronic-future-beats-117997.mp3',
-      'https://cdn.pixabay.com/download/audio/2022/05/16/audio_db32a4e21a.mp3?filename=lofi-study-112191.mp3',
-      'https://cdn.pixabay.com/download/audio/2022/10/14/audio_993dafb1df.mp3?filename=rock-classic-1122.mp3',
-      'https://cdn.pixabay.com/download/audio/2022/08/04/audio_2d0d1e3752.mp3?filename=ambient-chillout-11536.mp3',
-      'https://cdn.pixabay.com/download/audio/2021/09/06/audio_5153289066.mp3?filename=pop-summer-1033.mp3'
+    const verifiedAudioPool = [
+      'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/c4/52/c6/c452c6de-47ba-afa5-0cc7-2bf47b3896fd/mzaf_2907503907252752691.plus.aac.p.m4a',
+      'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/e7/a7/ce/e7a7ce2c-2f28-30c0-db1d-b14c99ce7c0f/mzaf_6358069312631873878.plus.aac.p.m4a',
+      'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/c3/32/f1/c332f138-aa3c-52b8-c414-e85111b58bf5/mzaf_12226515580236242706.plus.aac.p.m4a',
+      'https://dn710602.ca.archive.org/0/items/mythium/JLS_ATI.mp3',
     ];
 
-    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=25`;
+    const itunesUrl = `https://itunes.apple.com/search?term=${encodeURIComponent(query)}&media=music&entity=song&limit=30`;
     const response = await fetch(itunesUrl);
     if (response.ok) {
       const data: any = await response.json();
       const results = (data.results || []).map((item: any, index: number) => ({
         id: 'itunes_' + item.trackId,
-        title: item.trackName,
-        artist: item.artistName,
+        title: item.trackName || 'Música Online',
+        artist: item.artistName || 'Artista',
         album: item.collectionName || 'Single',
-        duration: Math.max(210, Math.round((item.trackTimeMillis || 210000) / 1000)),
+        duration: Math.max(30, Math.round((item.trackTimeMillis || 30000) / 1000)),
         coverUrl: (item.artworkUrl100 || '').replace('100x100bb', '300x300bb'),
-        audioUrl: fullAudioTracks[index % fullAudioTracks.length],
+        audioUrl: item.previewUrl || verifiedAudioPool[index % verifiedAudioPool.length],
         type: 'audio',
       }));
 

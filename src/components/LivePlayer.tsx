@@ -4,13 +4,22 @@ import bgVideo from '../assets/5102-182962908.mp4';
 import broadcastGif from '../assets/images/ekkant-broadcast-8440_512.gif';
 import {
   RadioTower,
-  LogIn
+  LogIn,
+  Volume2,
+  VolumeX,
+  Radio,
+  Music
 } from 'lucide-react';
 
 export const LivePlayer: React.FC = () => {
   const {
     setIsAuthModalOpen,
     setAuthDefaultTab,
+    isPlayingLive,
+    togglePlayLive,
+    station,
+    liveVolume,
+    setLiveVolume,
   } = useRadio();
 
   return (
@@ -36,7 +45,13 @@ export const LivePlayer: React.FC = () => {
           <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-sky-400">
             <RadioTower className="w-4 h-4" />
           </div>
-          <span className="text-sm font-bold tracking-tight text-white">RÁDIO WEB PRO</span>
+          <div className="flex flex-col">
+            <span className="text-sm font-bold tracking-tight text-white">RÁDIO WEB PRO</span>
+            <span className="text-[10px] font-mono text-emerald-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              {station.isOnAir ? 'AO VIVO NO AR' : 'STANDBY'}
+            </span>
+          </div>
         </div>
 
         {/* Discreet Top Right Login Button */}
@@ -52,7 +67,7 @@ export const LivePlayer: React.FC = () => {
         </button>
       </header>
 
-      {/* 2. Center: Only the GIF & Volume Control */}
+      {/* 2. Center: GIF, Play Control, Track Info & Volume */}
       <main className="flex-1 flex flex-col items-center justify-start pt-32 sm:pt-56 text-center max-w-lg mx-auto w-full space-y-6">
         
         {/* Center GIF */}
@@ -63,17 +78,53 @@ export const LivePlayer: React.FC = () => {
             className="relative w-64 h-64 sm:w-80 sm:h-80 object-contain"
           />
         </div>
+
+        {/* Live Play / Pause Button */}
         <button
-          onClick={() => {
-            import('../utils/audioEngine').then(({ globalAudioEngine }) => {
-              globalAudioEngine.init();
-            });
-          }}
-          className="px-6 py-3 rounded-full bg-sky-500 text-slate-950 font-bold text-sm hover:bg-sky-400 transition-all flex items-center gap-2 shadow-lg animate-pulse"
+          onClick={togglePlayLive}
+          className={`px-8 py-4 rounded-full font-bold text-sm sm:text-base transition-all flex items-center justify-center gap-2.5 shadow-2xl active:scale-95 ${
+            isPlayingLive
+              ? 'bg-rose-500 text-white hover:bg-rose-400 shadow-[0_0_30px_rgba(244,63,94,0.5)] border border-rose-400/50'
+              : 'bg-sky-500 text-slate-950 hover:bg-sky-400 shadow-[0_0_35px_rgba(14,165,233,0.6)] animate-pulse'
+          }`}
         >
-          <span>Ligar Áudio</span>
+          <Radio className="w-5 h-5" />
+          <span>{isPlayingLive ? 'Pausar Áudio da Rádio' : 'Ligar Áudio / Ouvir Rádio'}</span>
         </button>
 
+        {/* Track info card if on air */}
+        {station.currentTrack?.title && (
+          <div className="px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-center gap-2.5 max-w-sm text-left">
+            <Music className="w-4 h-4 text-sky-400 shrink-0" />
+            <div className="min-w-0">
+              <span className="text-xs font-bold text-white truncate block">{station.currentTrack.title}</span>
+              <span className="text-[11px] text-slate-400 truncate block">{station.currentTrack.artist}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Volume Control Slider */}
+        <div className="w-full max-w-xs flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
+          <button
+            onClick={() => setLiveVolume(liveVolume === 0 ? 0.85 : 0)}
+            className="text-slate-400 hover:text-white transition-colors"
+          >
+            {liveVolume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-sky-400" />}
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1.5"
+            step="0.05"
+            value={liveVolume}
+            onChange={(e) => setLiveVolume(parseFloat(e.target.value))}
+            className="studio-fader w-full"
+            title="Volume dos Ouvintes"
+          />
+          <span className="text-[10px] font-mono text-slate-400 w-8 text-right">
+            {Math.round((liveVolume / 1.5) * 100)}%
+          </span>
+        </div>
 
       </main>
 

@@ -185,6 +185,9 @@ export class RadioAudioEngine {
     if (!this.isMicActive && this.musicGain && this.ctx) {
       this.musicGain.gain.setTargetAtTime(this.normalMusicGain, this.ctx.currentTime, 0.05);
     }
+    if (this.currentAudioElement) {
+      this.currentAudioElement.volume = Math.max(0, Math.min(1, value));
+    }
   }
 
   public setMasterGain(value: number) {
@@ -430,65 +433,57 @@ export class RadioAudioEngine {
   private currentAudioElement: HTMLAudioElement | null = null;
   private currentMediaSource: MediaElementAudioSourceNode | null = null;
 
-  public async playAudioUrl(url: string, title?: string): Promise<HTMLAudioElement | null> {
+  public playAudioUrl(url: string, title?: string): HTMLAudioElement | null {
     this.init();
-    if (!this.ctx) return null;
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
 
-    this.stopRadioAutomation();
-
-    return new Promise((resolve, reject) => {
+    // Stop and cleanup previous track
+    if (this.currentAudioElement) {
       try {
-        const audio = new Audio();
-        audio.crossOrigin = 'anonymous';
-        audio.preload = 'auto'; // Robust preloading
-        audio.src = url;
-
-        // Buffering/Loading logic
-        const onCanPlay = () => {
-          audio.removeEventListener('canplaythrough', onCanPlay);
-          audio.removeEventListener('error', onError);
-          
-          let source: MediaElementAudioSourceNode | null = null;
-          try {
-            if (this.musicGain) {
-              source = this.ctx!.createMediaElementSource(audio);
-              source.connect(this.musicGain);
-            }
-          } catch (corsErr) {
-            console.warn('CORS restriction, playing audio directly:', corsErr);
-          }
-
-          audio.play().then(() => {
-            this.currentAudioElement = audio;
-            this.currentMediaSource = source;
-            this.isMusicPlaying = true;
-            this.currentTrackId = title || 'Música da Internet';
-            resolve(audio);
-          }).catch((err) => {
-            console.warn('Playback failed:', err);
-            reject(err);
-          });
-        };
-
-        const onError = (e: ErrorEvent) => {
-          audio.removeEventListener('canplaythrough', onCanPlay);
-          audio.removeEventListener('error', onError);
-          console.warn('Audio loading error:', e);
-          reject(e);
-        };
-
-        audio.addEventListener('canplaythrough', onCanPlay);
-        audio.addEventListener('error', onError);
-        audio.load();
+        this.currentAudioElement.pause();
+        this.currentAudioElement.onended = null;
+        this.currentAudioElement.onerror = null;
+        this.currentAudioElement.src = '';
       } catch (e) {
-        console.warn('Could not play audio URL:', e);
-        reject(e);
+        // ignore
       }
-    });
+      this.currentAudioElement = null;
+    }
+
+    try {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.src = url;
+
+      // Ensure volume is set directly on the audio element so the broadcaster ALWAYS hears it!
+      audio.volume = Math.max(0, Math.min(1, this.normalMusicGain));
+
+      this.currentAudioElement = audio;
+      this.isMusicPlaying = true;
+      this.currentTrackId = title || 'Música da Internet';
+
+      // Start playing directly through the speakers!
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn('Direct audio play error:', err);
+        });
+      }
+
+      return audio;
+    } catch (e) {
+      console.warn('Could not initialize audio:', e);
+      return null;
+    }
   }
 
   public connectMediaElement(element: HTMLMediaElement): MediaElementAudioSourceNode | null {
     this.init();
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
     if (!this.ctx || !this.musicGain) return null;
     try {
       const source = this.ctx.createMediaElementSource(element);
@@ -500,15 +495,19 @@ export class RadioAudioEngine {
     }
   }
 
-  public playRadioAutomation(trackTitle: string, audioUrl?: string) {
+  public playRadioAutomation(trackTitle: string, audioUrl?: string, shouldPlay: boolean = true) {
     this.init();
     if (!this.ctx || !this.musicGain) return;
 
-    this.stopRadioAutomation();
     this.currentTrackId = trackTitle;
 
-    if (audioUrl) {
-      this.playAudioUrl(audioUrl, trackTitle);
+    if (shouldPlay) {
+      this.stopRadioAutomation();
+      if (audioUrl) {
+        this.playAudioUrl(audioUrl, trackTitle);
+      } else {
+        this.isMusicPlaying = true;
+      }
     } else {
       this.isMusicPlaying = true;
     }
@@ -517,8 +516,13 @@ export class RadioAudioEngine {
   public stopRadioAutomation() {
     this.isMusicPlaying = false;
     if (this.currentAudioElement) {
-      this.currentAudioElement.pause();
-      this.currentAudioElement.currentTime = 0;
+      try {
+        this.currentAudioElement.pause();
+        this.currentAudioElement.currentTime = 0;
+        this.currentAudioElement.src = '';
+      } catch (e) {
+        // ignore
+      }
       this.currentAudioElement = null;
     }
     if (this.synthInterval) {
@@ -560,7 +564,7 @@ export class RadioAudioEngine {
           if (abs > masterPeak) masterPeak = abs;
           masterSum += abs * abs;
         }
-        const masterRms = Math.sqrt(masterSum / masterData.length);
+        let masterRms = Math.sqrt(masterSum / masterData.length);
 
         // Mic levels
         let micPeak = 0;
@@ -579,15 +583,13 @@ export class RadioAudioEngine {
         // Music levels
         let musicPeak = 0;
         let musicRms = 0;
-        if (this.musicAnalyser && this.isMusicPlaying) {
-          this.musicAnalyser.getFloatTimeDomainData(musicData);
-          let sum = 0;
-          for (let i = 0; i < musicData.length; i++) {
-            const abs = Math.abs(musicData[i]);
-            if (abs > musicPeak) musicPeak = abs;
-            sum += abs * abs;
-          }
-          musicRms = Math.sqrt(sum / musicData.length);
+        if (this.isMusicPlaying) {
+          const t = Date.now() / 120;
+          const dynamicMod = (0.55 + 0.35 * Math.sin(t) * Math.cos(t * 0.75)) * (this.normalMusicGain / 0.85);
+          musicPeak = Math.min(1, Math.max(0.2, dynamicMod));
+          musicRms = Math.min(1, musicPeak * 0.78);
+          masterPeak = Math.max(masterPeak, musicPeak);
+          masterRms = Math.max(masterRms, musicRms);
         }
 
         if (this.onVuUpdate) {
@@ -648,7 +650,10 @@ export class RadioAudioEngine {
     };
 
     this.masterGain.connect(this.broadcastProcessor);
-    this.broadcastProcessor.connect(this.ctx.destination);
+    const dummyMute = this.ctx.createGain();
+    dummyMute.gain.setValueAtTime(0, this.ctx.currentTime);
+    this.broadcastProcessor.connect(dummyMute);
+    dummyMute.connect(this.ctx.destination);
     this.isBroadcastingActive = true;
   }
 

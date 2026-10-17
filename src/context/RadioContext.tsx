@@ -115,7 +115,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [wsConnected, setWsConnected] = useState<boolean>(false);
 
   // Live Playback
-  const [isPlayingLive, setIsPlayingLive] = useState<boolean>(true);
+  const [isPlayingLive, setIsPlayingLive] = useState<boolean>(false);
   const [liveVolume, setLiveVolume] = useState<number>(0.85);
   const [audioQuality, setAudioQuality] = useState<string>('320 kbps (HD)');
 
@@ -123,15 +123,12 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     globalAudioEngine.init();
     globalAudioEngine.setMasterGain(liveVolume);
-    if (station.currentTrack?.audioUrl) {
-      globalAudioEngine.playAudioUrl(station.currentTrack.audioUrl, station.currentTrack.title);
-    }
 
     const handleFirstGesture = () => {
       // Robustly resume AudioContext if it was suspended by browser policy
       globalAudioEngine.init();
-      
-      if (station.currentTrack?.audioUrl) {
+      setIsPlayingLive(true);
+      if (station.currentTrack?.audioUrl && activeTab !== 'studio') {
         globalAudioEngine.playAudioUrl(station.currentTrack.audioUrl, station.currentTrack.title);
       }
       window.removeEventListener('click', handleFirstGesture);
@@ -229,7 +226,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   audioUrl: msg.track.audioUrl,
                 },
               }));
-              if (msg.track.audioUrl) {
+              if (msg.track.audioUrl && activeTab !== 'studio') {
                 setIsPlayingLive(true);
                 globalAudioEngine.playAudioUrl(msg.track.audioUrl, msg.track.title);
               }
@@ -508,7 +505,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const playTrackAutomation = (track: RadioTrack) => {
     setCurrentAutomationTrack(track);
     setIsAutomationPlaying(true);
-    globalAudioEngine.playRadioAutomation(track.title, track.audioUrl);
+    globalAudioEngine.playRadioAutomation(track.title, track.audioUrl, false);
     updateStationStatus({
       currentTrack: {
         title: track.title,
@@ -529,7 +526,7 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             album: track.album,
             duration: track.duration,
             genre: track.genre,
-            audioUrl: track.audioUrl,
+            audioUrl: track.audioUrl?.startsWith('blob:') ? undefined : track.audioUrl,
             coverUrl: track.coverUrl,
             type: track.type || 'audio',
             youtubeId: track.youtubeId,

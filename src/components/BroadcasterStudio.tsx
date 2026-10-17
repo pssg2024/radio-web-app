@@ -37,7 +37,9 @@ import {
   Eye,
   Check,
   RotateCcw,
-  ExternalLink
+  ExternalLink,
+  Upload,
+  FolderOpen
 } from 'lucide-react';
 import { RadioTrack } from '../types';
 
@@ -99,6 +101,7 @@ export const BroadcasterStudio: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<RadioTrack[]>([]);
   const [directUrlInput, setDirectUrlInput] = useState('');
+  const [uploadFeedback, setUploadFeedback] = useState<string | null>(null);
 
   // --- SEQUENTIAL PLAYLIST QUEUE (Tocar uma atrás da outra) ---
   const [playlistQueue, setPlaylistQueue] = useState<RadioTrack[]>([
@@ -110,7 +113,7 @@ export const BroadcasterStudio: React.FC = () => {
       duration: 215,
       genre: 'Synthwave',
       bpm: 120,
-      audioUrl: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=synthwave-80s-110045.mp3',
+      audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/c4/52/c6/c452c6de-47ba-afa5-0cc7-2bf47b3896fd/mzaf_2907503907252752691.plus.aac.p.m4a',
       coverUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80',
       type: 'audio',
     },
@@ -122,7 +125,7 @@ export const BroadcasterStudio: React.FC = () => {
       duration: 180,
       genre: 'Acoustic',
       bpm: 95,
-      audioUrl: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=acoustic-guitar-chill-10857.mp3',
+      audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/e7/a7/ce/e7a7ce2c-2f28-30c0-db1d-b14c99ce7c0f/mzaf_6358069312631873878.plus.aac.p.m4a',
       coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80',
       type: 'audio',
     },
@@ -134,7 +137,7 @@ export const BroadcasterStudio: React.FC = () => {
       duration: 195,
       genre: 'Pop / Dance',
       bpm: 128,
-      audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=electronic-future-beats-117997.mp3',
+      audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/c3/32/f1/c332f138-aa3c-52b8-c414-e85111b58bf5/mzaf_12226515580236242706.plus.aac.p.m4a',
       coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=300&q=80',
       type: 'audio',
     },
@@ -147,8 +150,9 @@ export const BroadcasterStudio: React.FC = () => {
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const videoPlayerRef = useRef<HTMLVideoElement | null>(null);
 
-  // Connect AudioEngine VU loop callback
+  // Connect AudioEngine VU loop callback and initialize studio sound
   useEffect(() => {
+    globalAudioEngine.init();
     globalAudioEngine.onVuUpdate = (levels) => {
       setVuLevels(levels);
     };
@@ -303,31 +307,58 @@ export const BroadcasterStudio: React.FC = () => {
     setDirectUrlInput('');
   };
 
-  // File upload for custom local tracks (audio or video from computer/phone)
+  // File upload for custom local tracks (multiple files supported from computer/phone)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    const objectUrl = URL.createObjectURL(file);
-    const isVideo = file.type.startsWith('video/') || file.name.endsWith('.mp4') || file.name.endsWith('.webm') || file.name.endsWith('.mov') || file.name.endsWith('.m4v');
-    const newTrack: RadioTrack = {
-      id: 'local_' + Date.now(),
-      title: file.name.replace(/\.[^/.]+$/, ''),
-      artist: isVideo ? 'Vídeo Local (PC/Celular)' : 'Arquivo Local (PC/Celular)',
-      album: 'Upload Local',
-      duration: 180,
-      genre: isVideo ? 'Vídeo' : 'Personalizado',
-      bpm: 120,
-      audioUrl: objectUrl,
-      coverUrl: isVideo
-        ? 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=300&q=80'
-        : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80',
-      type: isVideo ? 'video' : 'audio',
-      customFile: true,
-    };
+    const newTracks: RadioTrack[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const objectUrl = URL.createObjectURL(file);
+      const isVideo =
+        file.type.startsWith('video/') ||
+        file.name.endsWith('.mp4') ||
+        file.name.endsWith('.webm') ||
+        file.name.endsWith('.mov') ||
+        file.name.endsWith('.m4v');
 
-    const updatedQueue = [newTrack, ...playlistQueue];
+      let cleanName = file.name.replace(/\.[^/.]+$/, '');
+      let artistName = isVideo ? 'Vídeo Local' : 'Arquivo Local';
+      let songTitle = cleanName;
+
+      if (cleanName.includes(' - ')) {
+        const parts = cleanName.split(' - ');
+        artistName = parts[0].trim();
+        songTitle = parts.slice(1).join(' - ').trim();
+      }
+
+      newTracks.push({
+        id: 'local_' + Date.now() + '_' + i,
+        title: songTitle,
+        artist: artistName,
+        album: 'Dispositivo (PC / Celular)',
+        duration: 210,
+        genre: isVideo ? 'Vídeo' : 'Arquivo Local',
+        bpm: 120,
+        audioUrl: objectUrl,
+        coverUrl: isVideo
+          ? 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=300&q=80'
+          : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80',
+        type: isVideo ? 'video' : 'audio',
+        customFile: true,
+      });
+    }
+
+    // Reset input so selecting the same file again triggers change
+    e.target.value = '';
+
+    const updatedQueue = [...newTracks, ...playlistQueue];
     setPlaylistQueue(updatedQueue);
+    setUploadFeedback(`${newTracks.length} música(s) adicionada(s) à fila!`);
+    setTimeout(() => setUploadFeedback(null), 4000);
+
+    // Play immediately the first uploaded song
     playQueueTrackAtIndex(0, updatedQueue);
   };
 
@@ -351,7 +382,7 @@ export const BroadcasterStudio: React.FC = () => {
         videoPlayerRef.current.muted = false;
         videoPlayerRef.current.volume = Math.min(1, musicGainVal);
         globalAudioEngine.connectMediaElement(videoPlayerRef.current);
-        videoPlayerRef.current.play().catch((e) => console.warn(e));
+        videoPlayerRef.current.play().catch((e) => console.warn('Video play error:', e));
       }
     } else {
       // Audio track
@@ -361,12 +392,11 @@ export const BroadcasterStudio: React.FC = () => {
         videoPlayerRef.current.src = '';
       }
       if (track.audioUrl) {
-        globalAudioEngine.playAudioUrl(track.audioUrl, track.title).then((audioEl) => {
-          if (audioEl) {
-            audioEl.volume = Math.min(1, musicGainVal);
-            audioEl.onended = handleTrackEnded;
-          }
-        }).catch((e) => console.warn('Error pre-loading/playing audio:', e));
+        const audioEl = globalAudioEngine.playAudioUrl(track.audioUrl, track.title);
+        if (audioEl) {
+          audioEl.volume = Math.min(1, musicGainVal);
+          audioEl.onended = handleTrackEnded;
+        }
       }
     }
 
@@ -505,6 +535,42 @@ export const BroadcasterStudio: React.FC = () => {
             }`}
           >
             {station.isOnAir ? 'Pausar Transmissão' : 'Iniciar No Ar'}
+          </button>
+        </div>
+      </div>
+
+      {/* Retorno e Monitor de Áudio do Radialista */}
+      <div className="rounded-xl bg-slate-900/90 border border-slate-800 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+            <Volume2 className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-white">Retorno de Áudio do Radialista</span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold">
+                ● SOM ATIVO
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              O que você tocar na playlist ou na busca sai diretamente no seu alto-falante/fone e para os ouvintes
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Test Sound Button */}
+          <button
+            type="button"
+            onClick={() => {
+              globalAudioEngine.init();
+              globalAudioEngine.playSoundEffect('vinheta_pro');
+            }}
+            className="px-3 py-1.5 rounded-lg bg-sky-500/20 hover:bg-sky-500 text-sky-300 hover:text-slate-950 border border-sky-500/30 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95"
+            title="Toca a vinheta da rádio para você testar se o som do seu computador ou celular está saindo"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-sky-400" />
+            <span>Testar Som (Vinheta)</span>
           </button>
         </div>
       </div>
@@ -913,11 +979,74 @@ export const BroadcasterStudio: React.FC = () => {
                   <SkipForward className="w-3.5 h-3.5" />
                   <span>Pular</span>
                 </button>
+              </div>
+            </div>
 
-                <label className="cursor-pointer px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 flex items-center gap-1 transition-colors" title="Enviar arquivo de áudio ou vídeo do computador ou celular">
-                  <Plus className="w-3.5 h-3.5 text-sky-400" />
-                  <span>Arquivo (PC/Cel)</span>
-                  <input type="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.mp4,.webm,.mov,.m4v" onChange={handleFileUpload} className="hidden" />
+            {/* Upload Feedback Toast */}
+            {uploadFeedback && (
+              <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center justify-between animate-in fade-in">
+                <div className="flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-400" />
+                  <span>{uploadFeedback}</span>
+                </div>
+                <button onClick={() => setUploadFeedback(null)} className="text-slate-400 hover:text-white">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* SELEÇÃO E UPLOAD DE ARQUIVOS (PC / CELULAR) */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-sky-950/40 via-slate-950 to-indigo-950/40 border border-sky-500/30 space-y-3 shadow-md">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-sky-500/20 border border-sky-500/30 flex items-center justify-center text-sky-400">
+                    <Upload className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-bold text-white">Importar Músicas do Computador ou Celular</h3>
+                    <p className="text-[11px] text-slate-400">Selecione uma ou várias músicas direto da sua memória ou galeria</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {/* 1. Botão de Músicas (Audio Picker do Android/iPhone/PC) */}
+                <label className="cursor-pointer px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-xs flex items-center gap-2 transition-all shadow-md active:scale-95">
+                  <Music className="w-4 h-4" />
+                  <span>🎵 Músicas / Áudios (MP3, M4A, WAV)</span>
+                  <input
+                    type="file"
+                    accept="audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac,.wma,.opus"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                {/* 2. Botão de Vídeos (MP4, WebM) */}
+                <label className="cursor-pointer px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-xs flex items-center gap-2 transition-all active:scale-95">
+                  <Video className="w-4 h-4 text-amber-400" />
+                  <span>🎬 Vídeos (MP4, WebM)</span>
+                  <input
+                    type="file"
+                    accept="video/*,.mp4,.webm,.mov,.m4v"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                {/* 3. Todos os Arquivos (Qualquer formato) */}
+                <label className="cursor-pointer px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-medium text-xs flex items-center gap-1.5 transition-all">
+                  <FolderOpen className="w-4 h-4 text-emerald-400" />
+                  <span>📂 Qualquer Arquivo</span>
+                  <input
+                    type="file"
+                    accept="*/*"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
                 </label>
               </div>
             </div>
