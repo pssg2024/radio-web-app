@@ -322,6 +322,13 @@ export const BroadcasterStudio: React.FC = () => {
     playQueueTrackAtIndex(0, updatedQueue);
   };
 
+  const handleDeleteTrack = async (track: RadioTrack) => {
+    const res = await fetch(`/api/tracks/${track.id}`, { method: 'DELETE' });
+    if (res.ok) {
+        setPlaylistQueue(prev => prev.filter(t => t.id !== track.id));
+    }
+  };
+
   // --- PLAYLIST QUEUE PLAYBACK ENGINE ---
   const playQueueTrackAtIndex = (index: number, queue = playlistQueue) => {
     if (index < 0 || index >= queue.length) return;

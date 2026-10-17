@@ -446,9 +446,7 @@ export class RadioAudioEngine {
 
     try {
       const audio = new Audio();
-      if (!url.startsWith('blob:')) {
-        audio.crossOrigin = 'anonymous';
-      }
+      audio.crossOrigin = 'anonymous';
       audio.src = url;
       audio.load();
 
