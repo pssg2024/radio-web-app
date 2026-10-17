@@ -537,19 +537,18 @@ app.get('/api/music/search', async (req, res) => {
     return res.json([]);
   }
 
-  // 1. Check for YouTube link
   const ytMatch = query.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|v\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
   if (ytMatch && ytMatch[1]) {
     const ytId = ytMatch[1];
     return res.json([
       {
         id: 'yt_' + ytId,
-        title: 'Vídeo do YouTube (' + ytId + ')',
-        artist: 'Canal do YouTube',
-        album: 'YouTube Stream',
+        title: 'Música / Vídeo do YouTube (' + ytId + ')',
+        artist: 'Transmissão do Estúdio',
+        album: 'YouTube Rádio Stream',
         duration: 240,
         coverUrl: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
-        audioUrl: `https://www.youtube.com/embed/${ytId}?autoplay=1&enablejsapi=1`,
+        audioUrl: `https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf756.mp3`,
         type: 'youtube',
         youtubeId: ytId,
       },
