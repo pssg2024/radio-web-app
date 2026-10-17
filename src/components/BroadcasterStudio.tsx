@@ -360,9 +360,12 @@ export const BroadcasterStudio: React.FC = () => {
         videoPlayerRef.current.pause();
         videoPlayerRef.current.src = '';
       }
-      if (audioPlayerRef.current && track.audioUrl) {
-        audioPlayerRef.current.src = track.audioUrl;
-        audioPlayerRef.current.play().catch((e) => console.warn(e));
+      if (track.audioUrl) {
+        const audioEl = globalAudioEngine.playAudioUrl(track.audioUrl, track.title);
+        if (audioEl) {
+          audioEl.volume = Math.min(1, musicGainVal);
+          audioEl.onended = handleTrackEnded;
+        }
       }
     }
 
