@@ -64,23 +64,15 @@ export class RadioAudioEngine {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     this.ctx = new AudioContextClass();
 
-    // Master bus & Professional Brickwall Limiter (prevents clipping/distortion)
+    // Master bus
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.setValueAtTime(0.85, this.ctx.currentTime);
-
-    const masterLimiter = this.ctx.createDynamicsCompressor();
-    masterLimiter.threshold.setValueAtTime(-1.0, this.ctx.currentTime);
-    masterLimiter.knee.setValueAtTime(0.0, this.ctx.currentTime);
-    masterLimiter.ratio.setValueAtTime(20.0, this.ctx.currentTime);
-    masterLimiter.attack.setValueAtTime(0.001, this.ctx.currentTime);
-    masterLimiter.release.setValueAtTime(0.1, this.ctx.currentTime);
+    this.masterGain.gain.setValueAtTime(0.9, this.ctx.currentTime);
 
     this.masterAnalyser = this.ctx.createAnalyser();
     this.masterAnalyser.fftSize = 512;
     this.masterAnalyser.smoothingTimeConstant = 0.8;
 
-    this.masterGain.connect(masterLimiter);
-    masterLimiter.connect(this.masterAnalyser);
+    this.masterGain.connect(this.masterAnalyser);
     this.masterAnalyser.connect(this.ctx.destination);
 
     // Music Channel
@@ -438,42 +430,61 @@ export class RadioAudioEngine {
   private currentAudioElement: HTMLAudioElement | null = null;
   private currentMediaSource: MediaElementAudioSourceNode | null = null;
 
-  public playAudioUrl(url: string, title?: string): HTMLAudioElement | null {
+  public async playAudioUrl(url: string, title?: string): Promise<HTMLAudioElement | null> {
     this.init();
     if (!this.ctx) return null;
 
     this.stopRadioAutomation();
 
-    try {
-      const audio = new Audio();
-      audio.crossOrigin = 'anonymous';
-      audio.src = url;
-      audio.load();
-
-      let source: MediaElementAudioSourceNode | null = null;
+    return new Promise((resolve, reject) => {
       try {
-        if (this.musicGain) {
-          source = this.ctx.createMediaElementSource(audio);
-          source.connect(this.musicGain);
-        }
-      } catch (corsErr) {
-        console.warn('CORS restriction on createMediaElementSource, playing audio directly:', corsErr);
+        const audio = new Audio();
+        audio.crossOrigin = 'anonymous';
+        audio.preload = 'auto'; // Robust preloading
+        audio.src = url;
+
+        // Buffering/Loading logic
+        const onCanPlay = () => {
+          audio.removeEventListener('canplaythrough', onCanPlay);
+          audio.removeEventListener('error', onError);
+          
+          let source: MediaElementAudioSourceNode | null = null;
+          try {
+            if (this.musicGain) {
+              source = this.ctx!.createMediaElementSource(audio);
+              source.connect(this.musicGain);
+            }
+          } catch (corsErr) {
+            console.warn('CORS restriction, playing audio directly:', corsErr);
+          }
+
+          audio.play().then(() => {
+            this.currentAudioElement = audio;
+            this.currentMediaSource = source;
+            this.isMusicPlaying = true;
+            this.currentTrackId = title || 'Música da Internet';
+            resolve(audio);
+          }).catch((err) => {
+            console.warn('Playback failed:', err);
+            reject(err);
+          });
+        };
+
+        const onError = (e: ErrorEvent) => {
+          audio.removeEventListener('canplaythrough', onCanPlay);
+          audio.removeEventListener('error', onError);
+          console.warn('Audio loading error:', e);
+          reject(e);
+        };
+
+        audio.addEventListener('canplaythrough', onCanPlay);
+        audio.addEventListener('error', onError);
+        audio.load();
+      } catch (e) {
+        console.warn('Could not play audio URL:', e);
+        reject(e);
       }
-
-      audio.play().catch((err) => {
-        console.warn('Audio playback error (autoplay policy or network):', err);
-      });
-
-      this.currentAudioElement = audio;
-      this.currentMediaSource = source;
-      this.isMusicPlaying = true;
-      this.currentTrackId = title || 'Música da Internet';
-
-      return audio;
-    } catch (e) {
-      console.warn('Could not play audio URL:', e);
-      return null;
-    }
+    });
   }
 
   public connectMediaElement(element: HTMLMediaElement): MediaElementAudioSourceNode | null {

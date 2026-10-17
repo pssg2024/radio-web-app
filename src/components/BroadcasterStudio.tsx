@@ -101,18 +101,47 @@ export const BroadcasterStudio: React.FC = () => {
   const [directUrlInput, setDirectUrlInput] = useState('');
 
   // --- SEQUENTIAL PLAYLIST QUEUE (Tocar uma atrás da outra) ---
-  const [playlistQueue, setPlaylistQueue] = useState<RadioTrack[]>([]);
+  const [playlistQueue, setPlaylistQueue] = useState<RadioTrack[]>([
+    {
+      id: 'init_1',
+      title: 'Midnight City Groove',
+      artist: 'Synthwave Collective',
+      album: 'Neon Echoes',
+      duration: 215,
+      genre: 'Synthwave',
+      bpm: 120,
+      audioUrl: 'https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3?filename=synthwave-80s-110045.mp3',
+      coverUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80',
+      type: 'audio',
+    },
+    {
+      id: 'init_2',
+      title: 'Acoustic Sunset Chill',
+      artist: 'Brasil Lounge',
+      album: 'Acústico Brasil',
+      duration: 180,
+      genre: 'Acoustic',
+      bpm: 95,
+      audioUrl: 'https://cdn.pixabay.com/download/audio/2022/01/18/audio_d0a13f69d2.mp3?filename=acoustic-guitar-chill-10857.mp3',
+      coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80',
+      type: 'audio',
+    },
+    {
+      id: 'init_3',
+      title: 'Energia Pop & Dança',
+      artist: 'Electro Pop Hits',
+      album: 'Summer Beat',
+      duration: 195,
+      genre: 'Pop / Dance',
+      bpm: 128,
+      audioUrl: 'https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8c8a73467.mp3?filename=electronic-future-beats-117997.mp3',
+      coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=300&q=80',
+      type: 'audio',
+    },
+  ]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState<number>(0);
   const [autoplayNext, setAutoplayNext] = useState<boolean>(true);
   const [activeVideoTrack, setActiveVideoTrack] = useState<RadioTrack | null>(null);
-
-  // Fetch initial tracks from Supabase
-  useEffect(() => {
-    fetch('/api/tracks')
-      .then((res) => res.json())
-      .then((data) => setPlaylistQueue(data))
-      .catch((err) => console.error('Error fetching tracks:', err));
-  }, []);
 
   // Hidden Audio & Video element refs
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
@@ -159,28 +188,8 @@ export const BroadcasterStudio: React.FC = () => {
     }
   }, [activeVideoTrack, musicGainVal]);
 
-  // Ensure AudioEngine initialized on interaction
-  const initAudioOnInteraction = () => {
-    globalAudioEngine.init();
-    window.removeEventListener('click', initAudioOnInteraction);
-    window.removeEventListener('keydown', initAudioOnInteraction);
-    window.removeEventListener('touchstart', initAudioOnInteraction);
-  };
-
-  useEffect(() => {
-    window.addEventListener('click', initAudioOnInteraction);
-    window.addEventListener('keydown', initAudioOnInteraction);
-    window.addEventListener('touchstart', initAudioOnInteraction);
-    return () => {
-      window.removeEventListener('click', initAudioOnInteraction);
-      window.removeEventListener('keydown', initAudioOnInteraction);
-      window.removeEventListener('touchstart', initAudioOnInteraction);
-    };
-  }, []);
-
   // Microphone toggle handler
   const handleToggleMic = async () => {
-    globalAudioEngine.init();
     if (isMicLive) {
       globalAudioEngine.disableMicrophone();
       setIsMicLive(false);
@@ -322,13 +331,6 @@ export const BroadcasterStudio: React.FC = () => {
     playQueueTrackAtIndex(0, updatedQueue);
   };
 
-  const handleDeleteTrack = async (track: RadioTrack) => {
-    const res = await fetch(`/api/tracks/${track.id}`, { method: 'DELETE' });
-    if (res.ok) {
-        setPlaylistQueue(prev => prev.filter(t => t.id !== track.id));
-    }
-  };
-
   // --- PLAYLIST QUEUE PLAYBACK ENGINE ---
   const playQueueTrackAtIndex = (index: number, queue = playlistQueue) => {
     if (index < 0 || index >= queue.length) return;
@@ -359,11 +361,12 @@ export const BroadcasterStudio: React.FC = () => {
         videoPlayerRef.current.src = '';
       }
       if (track.audioUrl) {
-        const audioEl = globalAudioEngine.playAudioUrl(track.audioUrl, track.title);
-        if (audioEl) {
-          audioEl.volume = Math.min(1, musicGainVal);
-          audioEl.onended = handleTrackEnded;
-        }
+        globalAudioEngine.playAudioUrl(track.audioUrl, track.title).then((audioEl) => {
+          if (audioEl) {
+            audioEl.volume = Math.min(1, musicGainVal);
+            audioEl.onended = handleTrackEnded;
+          }
+        }).catch((e) => console.warn('Error pre-loading/playing audio:', e));
       }
     }
 
@@ -436,7 +439,7 @@ export const BroadcasterStudio: React.FC = () => {
       <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4 sm:p-6 shadow-2xl flex flex-wrap items-center justify-between gap-4">
         
         {/* Left: Illuminated ON AIR sign */}
-        <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-4">
           <div
             className={`px-4 py-2 rounded-xl flex items-center gap-2.5 font-mono font-extrabold text-sm tracking-widest transition-all ${
               station.isOnAir
@@ -447,16 +450,13 @@ export const BroadcasterStudio: React.FC = () => {
             <span className={`w-3 h-3 rounded-full ${station.isOnAir ? 'bg-white' : 'bg-slate-600'}`} />
             <span>{station.isOnAir ? 'ON AIR · TRANSMITINDO' : 'OFF AIR · FORA DO AR'}</span>
           </div>
-          <div className="w-48 h-10">
-            <AudioWaveform isActive={station.isOnAir || isAutomationPlaying} height={40} />
+
+          <div className="hidden sm:flex flex-col">
+            <span className="text-xs font-semibold text-white">{station.currentShow}</span>
+            <span className="text-[11px] text-slate-400">Radialista: {station.broadcaster}</span>
           </div>
         </div>
 
-        <div className="hidden sm:flex flex-col">
-          <span className="text-xs font-semibold text-white">{station.currentShow}</span>
-          <span className="text-[11px] text-slate-400">Radialista: {station.broadcaster}</span>
-        </div>
-        
         {/* Center: Live Broadcast Stats */}
         <div className="flex items-center gap-4 sm:gap-6 text-xs font-mono">
           <div className="flex flex-col">
@@ -1039,9 +1039,9 @@ export const BroadcasterStudio: React.FC = () => {
                           {isCurrent && isAutomationPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
                         </button>
                         <button
-                          onClick={() => handleDeleteTrack(track)}
+                          onClick={() => handleRemoveFromQueue(i)}
                           className="p-1.5 text-slate-500 hover:text-rose-400 transition-colors"
-                          title="Remover da lista e excluir"
+                          title="Remover da lista"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

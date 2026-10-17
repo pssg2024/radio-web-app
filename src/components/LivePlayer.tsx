@@ -63,6 +63,16 @@ export const LivePlayer: React.FC = () => {
             className="relative w-64 h-64 sm:w-80 sm:h-80 object-contain"
           />
         </div>
+        <button
+          onClick={() => {
+            import('../utils/audioEngine').then(({ globalAudioEngine }) => {
+              globalAudioEngine.init();
+            });
+          }}
+          className="px-6 py-3 rounded-full bg-sky-500 text-slate-950 font-bold text-sm hover:bg-sky-400 transition-all flex items-center gap-2 shadow-lg animate-pulse"
+        >
+          <span>Ligar Áudio</span>
+        </button>
 
 
       </main>
