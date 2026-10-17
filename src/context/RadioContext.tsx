@@ -195,10 +195,16 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   duration: msg.track.duration || 210,
                   elapsed: 0,
                   genre: msg.track.genre || 'Hit',
+                  audioUrl: msg.track.audioUrl,
                 },
               }));
+              if (msg.track.audioUrl) {
+                setIsPlayingLive(true);
+                globalAudioEngine.playAudioUrl(msg.track.audioUrl, msg.track.title);
+              }
             }
           } else if (msg.type === 'station_media_stop') {
+            globalAudioEngine.stopRadioAutomation();
             setStation((prev) => ({
               ...prev,
               currentTrack: {
@@ -388,9 +394,10 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
       globalAudioEngine.init();
       globalAudioEngine.setMasterGain(liveVolume);
-      // Nenhum som sintético de fundo automático no ouvinte;
-      // o ouvinte escuta estritamente o áudio transmitido pelo estúdio em tempo real!
       setIsPlayingLive(true);
+      if (station.currentTrack?.audioUrl) {
+        globalAudioEngine.playAudioUrl(station.currentTrack.audioUrl, station.currentTrack.title);
+      }
     }
   };
 

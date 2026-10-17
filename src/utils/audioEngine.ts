@@ -432,7 +432,7 @@ export class RadioAudioEngine {
 
   public playAudioUrl(url: string, title?: string): HTMLAudioElement | null {
     this.init();
-    if (!this.ctx || !this.musicGain) return null;
+    if (!this.ctx) return null;
 
     this.stopRadioAutomation();
 
@@ -440,11 +440,21 @@ export class RadioAudioEngine {
       const audio = new Audio();
       audio.crossOrigin = 'anonymous';
       audio.src = url;
+      audio.load();
 
-      const source = this.ctx.createMediaElementSource(audio);
-      source.connect(this.musicGain);
+      let source: MediaElementAudioSourceNode | null = null;
+      try {
+        if (this.musicGain) {
+          source = this.ctx.createMediaElementSource(audio);
+          source.connect(this.musicGain);
+        }
+      } catch (corsErr) {
+        console.warn('CORS restriction on createMediaElementSource, playing audio directly:', corsErr);
+      }
 
-      audio.play().catch((err) => console.warn('Audio playback error:', err));
+      audio.play().catch((err) => {
+        console.warn('Audio playback error (autoplay policy or network):', err);
+      });
 
       this.currentAudioElement = audio;
       this.currentMediaSource = source;
@@ -453,7 +463,7 @@ export class RadioAudioEngine {
 
       return audio;
     } catch (e) {
-      console.warn('Could not route audio element through Web Audio:', e);
+      console.warn('Could not play audio URL:', e);
       return null;
     }
   }
