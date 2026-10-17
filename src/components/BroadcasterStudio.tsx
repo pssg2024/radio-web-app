@@ -76,7 +76,7 @@ export const BroadcasterStudio: React.FC = () => {
   const [masterGainVal, setMasterGainVal] = useState(0.95);
   const [autoDucking, setAutoDucking] = useState(true);
   const [crossfadeSec, setCrossfadeSec] = useState(4);
-  const [activeStudioTab, setActiveStudioTab] = useState<'mixer' | 'playlist' | 'search' | 'soundboard' | 'requests'>('playlist');
+  const [activeStudioTab, setActiveStudioTab] = useState<'playlist' | 'search' | 'mixer' | 'requests'>('playlist');
 
   // Real-time VU Levels from AudioEngine
   const [vuLevels, setVuLevels] = useState({
@@ -103,45 +103,8 @@ export const BroadcasterStudio: React.FC = () => {
   const [directUrlInput, setDirectUrlInput] = useState('');
   const [uploadFeedback, setUploadFeedback] = useState<string | null>(null);
 
-  // --- SEQUENTIAL PLAYLIST QUEUE (Tocar uma atrás da outra) ---
-  const [playlistQueue, setPlaylistQueue] = useState<RadioTrack[]>([
-    {
-      id: 'init_1',
-      title: 'Midnight City Groove',
-      artist: 'Synthwave Collective',
-      album: 'Neon Echoes',
-      duration: 215,
-      genre: 'Synthwave',
-      bpm: 120,
-      audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview115/v4/c4/52/c6/c452c6de-47ba-afa5-0cc7-2bf47b3896fd/mzaf_2907503907252752691.plus.aac.p.m4a',
-      coverUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=300&q=80',
-      type: 'audio',
-    },
-    {
-      id: 'init_2',
-      title: 'Acoustic Sunset Chill',
-      artist: 'Brasil Lounge',
-      album: 'Acústico Brasil',
-      duration: 180,
-      genre: 'Acoustic',
-      bpm: 95,
-      audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/e7/a7/ce/e7a7ce2c-2f28-30c0-db1d-b14c99ce7c0f/mzaf_6358069312631873878.plus.aac.p.m4a',
-      coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80',
-      type: 'audio',
-    },
-    {
-      id: 'init_3',
-      title: 'Energia Pop & Dança',
-      artist: 'Electro Pop Hits',
-      album: 'Summer Beat',
-      duration: 195,
-      genre: 'Pop / Dance',
-      bpm: 128,
-      audioUrl: 'https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview211/v4/c3/32/f1/c332f138-aa3c-52b8-c414-e85111b58bf5/mzaf_12226515580236242706.plus.aac.p.m4a',
-      coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=300&q=80',
-      type: 'audio',
-    },
-  ]);
+  // --- SEQUENTIAL PLAYLIST QUEUE (Inicia 100% limpa sem músicas fixas) ---
+  const [playlistQueue, setPlaylistQueue] = useState<RadioTrack[]>([]);
   const [currentQueueIndex, setCurrentQueueIndex] = useState<number>(0);
   const [autoplayNext, setAutoplayNext] = useState<boolean>(true);
   const [activeVideoTrack, setActiveVideoTrack] = useState<RadioTrack | null>(null);
@@ -642,15 +605,6 @@ export const BroadcasterStudio: React.FC = () => {
         >
           <SlidersHorizontal className="w-3.5 h-3.5" />
           <span>Mesa de Som (VU Meter)</span>
-        </button>
-        <button
-          onClick={() => setActiveStudioTab('soundboard')}
-          className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
-            activeStudioTab === 'soundboard' ? 'bg-sky-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Vinhetas Rápidas</span>
         </button>
       </div>
 

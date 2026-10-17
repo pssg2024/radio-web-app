@@ -4,11 +4,7 @@ import bgVideo from '../assets/5102-182962908.mp4';
 import broadcastGif from '../assets/images/ekkant-broadcast-8440_512.gif';
 import {
   RadioTower,
-  LogIn,
-  Volume2,
-  VolumeX,
-  Radio,
-  Music
+  LogIn
 } from 'lucide-react';
 
 export const LivePlayer: React.FC = () => {
@@ -67,65 +63,16 @@ export const LivePlayer: React.FC = () => {
         </button>
       </header>
 
-      {/* 2. Center: GIF, Play Control, Track Info & Volume */}
-      <main className="flex-1 flex flex-col items-center justify-start pt-32 sm:pt-56 text-center max-w-lg mx-auto w-full space-y-6">
-        
+      {/* 2. Center: Only the Animated Broadcast GIF - Clean Layout */}
+      <main className="flex-1 flex flex-col items-center justify-center text-center max-w-lg mx-auto w-full">
         {/* Center GIF */}
         <div className="relative flex items-center justify-center">
           <img
             src={broadcastGif}
             alt="Transmissão Ao Vivo"
-            className="relative w-64 h-64 sm:w-80 sm:h-80 object-contain"
+            className="relative w-64 h-64 sm:w-80 sm:h-80 md:w-96 md:h-96 object-contain filter drop-shadow-[0_0_35px_rgba(14,165,233,0.3)]"
           />
         </div>
-
-        {/* Live Play / Pause Button */}
-        <button
-          onClick={togglePlayLive}
-          className={`px-8 py-4 rounded-full font-bold text-sm sm:text-base transition-all flex items-center justify-center gap-2.5 shadow-2xl active:scale-95 ${
-            isPlayingLive
-              ? 'bg-rose-500 text-white hover:bg-rose-400 shadow-[0_0_30px_rgba(244,63,94,0.5)] border border-rose-400/50'
-              : 'bg-sky-500 text-slate-950 hover:bg-sky-400 shadow-[0_0_35px_rgba(14,165,233,0.6)] animate-pulse'
-          }`}
-        >
-          <Radio className="w-5 h-5" />
-          <span>{isPlayingLive ? 'Pausar Áudio da Rádio' : 'Ligar Áudio / Ouvir Rádio'}</span>
-        </button>
-
-        {/* Track info card if on air */}
-        {station.currentTrack?.title && (
-          <div className="px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-center gap-2.5 max-w-sm text-left">
-            <Music className="w-4 h-4 text-sky-400 shrink-0" />
-            <div className="min-w-0">
-              <span className="text-xs font-bold text-white truncate block">{station.currentTrack.title}</span>
-              <span className="text-[11px] text-slate-400 truncate block">{station.currentTrack.artist}</span>
-            </div>
-          </div>
-        )}
-
-        {/* Volume Control Slider */}
-        <div className="w-full max-w-xs flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-950/60 border border-slate-800/60">
-          <button
-            onClick={() => setLiveVolume(liveVolume === 0 ? 0.85 : 0)}
-            className="text-slate-400 hover:text-white transition-colors"
-          >
-            {liveVolume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4 text-sky-400" />}
-          </button>
-          <input
-            type="range"
-            min="0"
-            max="1.5"
-            step="0.05"
-            value={liveVolume}
-            onChange={(e) => setLiveVolume(parseFloat(e.target.value))}
-            className="studio-fader w-full"
-            title="Volume dos Ouvintes"
-          />
-          <span className="text-[10px] font-mono text-slate-400 w-8 text-right">
-            {Math.round((liveVolume / 1.5) * 100)}%
-          </span>
-        </div>
-
       </main>
 
       {/* 3. Footer: Subtle copyright */}
