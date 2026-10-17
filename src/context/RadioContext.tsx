@@ -128,7 +128,9 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
 
     const handleFirstGesture = () => {
+      // Robustly resume AudioContext if it was suspended by browser policy
       globalAudioEngine.init();
+      
       if (station.currentTrack?.audioUrl) {
         globalAudioEngine.playAudioUrl(station.currentTrack.audioUrl, station.currentTrack.title);
       }

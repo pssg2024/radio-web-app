@@ -510,9 +510,23 @@ app.delete('/api/podcasts/:id', (req, res) => {
   res.json({ success: true, message: 'Episódio removido com sucesso.' });
 });
 
-// 4. Automation Tracks
-app.get('/api/tracks', (_req, res) => {
-  res.json(db.tracks);
+// 4. Automation Tracks (Supabase)
+app.get('/api/tracks', async (_req, res) => {
+  const { data, error } = await supabase.from('tracks').select('*');
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data);
+});
+
+app.post('/api/tracks', async (req, res) => {
+  const { data, error } = await supabase.from('tracks').insert([req.body]).select();
+  if (error) return res.status(500).json({ error: error.message });
+  res.status(201).json(data[0]);
+});
+
+app.delete('/api/tracks/:id', async (req, res) => {
+  const { error } = await supabase.from('tracks').delete().eq('id', req.params.id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ success: true });
 });
 
 // 5. Soundboard Presets
