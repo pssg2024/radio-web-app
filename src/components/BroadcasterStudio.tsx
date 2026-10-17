@@ -178,10 +178,15 @@ export const BroadcasterStudio: React.FC = () => {
     if (audioPlayerRef.current) {
       globalAudioEngine.connectMediaElement(audioPlayerRef.current);
     }
+  }, []);
+
+  useEffect(() => {
     if (videoPlayerRef.current) {
       globalAudioEngine.connectMediaElement(videoPlayerRef.current);
+      videoPlayerRef.current.muted = false;
+      videoPlayerRef.current.volume = Math.min(1, musicGainVal);
     }
-  }, []);
+  }, [activeVideoTrack, musicGainVal]);
 
   // Microphone toggle handler
   const handleToggleMic = async () => {
@@ -298,28 +303,32 @@ export const BroadcasterStudio: React.FC = () => {
     setDirectUrlInput('');
   };
 
-  // File upload for custom local tracks
+  // File upload for custom local tracks (audio or video from computer/phone)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const objectUrl = URL.createObjectURL(file);
+    const isVideo = file.type.startsWith('video/') || file.name.endsWith('.mp4') || file.name.endsWith('.webm') || file.name.endsWith('.mov') || file.name.endsWith('.m4v');
     const newTrack: RadioTrack = {
       id: 'local_' + Date.now(),
       title: file.name.replace(/\.[^/.]+$/, ''),
-      artist: 'Arquivo do Radialista',
+      artist: isVideo ? 'Vídeo Local (PC/Celular)' : 'Arquivo Local (PC/Celular)',
       album: 'Upload Local',
       duration: 180,
-      genre: 'Personalizado',
+      genre: isVideo ? 'Vídeo' : 'Personalizado',
       bpm: 120,
       audioUrl: objectUrl,
-      coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80',
-      type: 'audio',
+      coverUrl: isVideo
+        ? 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?auto=format&fit=crop&w=300&q=80'
+        : 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=300&q=80',
+      type: isVideo ? 'video' : 'audio',
       customFile: true,
     };
 
-    setPlaylistQueue((prev) => [newTrack, ...prev]);
-    playQueueTrackAtIndex(0, [newTrack, ...playlistQueue]);
+    const updatedQueue = [newTrack, ...playlistQueue];
+    setPlaylistQueue(updatedQueue);
+    playQueueTrackAtIndex(0, updatedQueue);
   };
 
   // --- PLAYLIST QUEUE PLAYBACK ENGINE ---
@@ -339,6 +348,9 @@ export const BroadcasterStudio: React.FC = () => {
       }
       if (track.type === 'video' && videoPlayerRef.current && track.audioUrl) {
         videoPlayerRef.current.src = track.audioUrl;
+        videoPlayerRef.current.muted = false;
+        videoPlayerRef.current.volume = Math.min(1, musicGainVal);
+        globalAudioEngine.connectMediaElement(videoPlayerRef.current);
         videoPlayerRef.current.play().catch((e) => console.warn(e));
       }
     } else {
@@ -898,10 +910,10 @@ export const BroadcasterStudio: React.FC = () => {
                   <span>Pular</span>
                 </button>
 
-                <label className="cursor-pointer px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 flex items-center gap-1 transition-colors">
+                <label className="cursor-pointer px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 flex items-center gap-1 transition-colors" title="Enviar arquivo de áudio ou vídeo do computador ou celular">
                   <Plus className="w-3.5 h-3.5 text-sky-400" />
-                  <span>MP3</span>
-                  <input type="file" accept="audio/*" onChange={handleFileUpload} className="hidden" />
+                  <span>Arquivo (PC/Cel)</span>
+                  <input type="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.mp4,.webm,.mov,.m4v" onChange={handleFileUpload} className="hidden" />
                 </label>
               </div>
             </div>

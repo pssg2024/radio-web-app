@@ -115,9 +115,38 @@ export const RadioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [wsConnected, setWsConnected] = useState<boolean>(false);
 
   // Live Playback
-  const [isPlayingLive, setIsPlayingLive] = useState<boolean>(false);
+  const [isPlayingLive, setIsPlayingLive] = useState<boolean>(true);
   const [liveVolume, setLiveVolume] = useState<number>(0.85);
   const [audioQuality, setAudioQuality] = useState<string>('320 kbps (HD)');
+
+  // Auto-play on mount
+  useEffect(() => {
+    globalAudioEngine.init();
+    globalAudioEngine.setMasterGain(liveVolume);
+    if (station.currentTrack?.audioUrl) {
+      globalAudioEngine.playAudioUrl(station.currentTrack.audioUrl, station.currentTrack.title);
+    }
+
+    const handleFirstGesture = () => {
+      globalAudioEngine.init();
+      if (station.currentTrack?.audioUrl) {
+        globalAudioEngine.playAudioUrl(station.currentTrack.audioUrl, station.currentTrack.title);
+      }
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+    };
+
+    window.addEventListener('click', handleFirstGesture);
+    window.addEventListener('keydown', handleFirstGesture);
+    window.addEventListener('touchstart', handleFirstGesture);
+
+    return () => {
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+      window.removeEventListener('touchstart', handleFirstGesture);
+    };
+  }, []);
 
   // Podcast Player
   const [activePodcast, setActivePodcast] = useState<PodcastEpisode | null>(null);
